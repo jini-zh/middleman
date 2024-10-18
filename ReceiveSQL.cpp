@@ -1145,13 +1145,13 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 	Postgres& a_database = m_databases.at(db_out);
 
 	std::string name;
-	std::string trace;
+	std::string traces;
 	std::string layout;
 	int version = -1;
 	int timestamp = 0;
 	get_ok  = plot.Get("name", name);
-	get_ok &= plot.Get("trace", trace);
-	get_ok &= plot.Get("layout", layout);
+	get_ok &= plot.JsonEncode("traces", traces);
+	get_ok &= plot.JsonEncode("layout", layout);
 	plot.Get("version", version);
 	plot.Get("timestamp", timestamp);
 	if (!get_ok) {
@@ -1161,7 +1161,7 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 
 	// SQL sanitization
 	get_ok  = a_database.pqxx_quote(name, name);
-	get_ok &= a_database.pqxx_quote(trace, trace);
+	get_ok &= a_database.pqxx_quote(traces, traces);
 	get_ok &= a_database.pqxx_quote(layout, layout);
 	if (!get_ok) {
 		Log("WritePlotlyPlotToQuery: error quoting fields in message '" + message + "'", v_error);
@@ -1175,11 +1175,11 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 	get_ok = TimeStringFromUnixMs(timestamp, timestring);
 	if (!get_ok) return false;
 
-	sql_out = "INSERT INTO plotlyplots ( name, time, version, trace, layout ) VALUES ( "
+	sql_out = "INSERT INTO plotlyplots ( name, time, version, traces, layout ) VALUES ( "
 		+ name + ",'"
 		+ timestring + "',"
 		+ "(select COALESCE(MAX(version) + 1, 0) FROM plotlyplots where name = " + name + "),"
-		+ trace + ","
+		+ traces + ","
 		+ layout + ") returning version;";
 	Log(Concat("Resulting SQL: '", sql_out, "', database: '", db_out, "'"), 4);
 
@@ -1190,9 +1190,9 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 
 bool ReceiveSQL::WriteMessageToQuery(const std::string& topic, const std::string& message, std::string& db_out, std::string& sql_out){
 	Log(Concat("Forming SQL for write query with topic: '",topic,"', message: '",message,"'"),4);
-	
+
 	// write queries received on the pub port are JSON messages that we need to convert to SQL.
-	BStore store;
+	BStore store(false, true);
 	get_ok = parser.Parse(message, store);
 	if(!get_ok){
 		Log("WriteMessageToQuery error parsing message json '"+message+"'",v_error);
@@ -1524,7 +1524,7 @@ bool ReceiveSQL::ReadPlotlyPlotToQuery(const std::string& message, BStore& reque
 		return false;
 	}
 
-	sql_out = "SELECT version, trace, layout, time FROM plotlyplots WHERE name = " + name;
+	sql_out = "SELECT version, traces, layout, time FROM plotlyplots WHERE name = " + name;
 	if (version < 0) {
 		sql_out += " ORDER BY time DESC LIMIT 1;";
 	} else {
