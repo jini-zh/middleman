@@ -1148,7 +1148,7 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 	std::string traces;
 	std::string layout;
 	int version = -1;
-	int timestamp = 0;
+	int64_t timestamp = 0;
 	get_ok  = plot.Get("name", name);
 	get_ok &= plot.JsonEncode("traces", traces);
 	get_ok &= plot.JsonEncode("layout", layout);
@@ -1168,7 +1168,7 @@ bool ReceiveSQL::WritePlotlyPlotToQuery(const std::string& message, BStore& plot
 		return false;
 	}
 
-	// times are received in unix seconds since epoch, or 0 for 'now()'.
+	// times are received in unix milliseconds since epoch, or 0 for 'now()'.
 	// build an ISO 8601 timestamp ("2015-10-02 11:16:34+0100")
 	// (the trailing "+0100" is number of [hours][mins] in local timezone relative to UTC)
 	std::string timestring;
